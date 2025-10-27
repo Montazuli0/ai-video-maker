@@ -1,3 +1,6 @@
+const HF_API_TOKEN = "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";
+const API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-video-diffusion-img2vid";
+
 function convertToVideo() {
     const fileInput = document.getElementById('imageUpload');
     const resultDiv = document.getElementById('result');
@@ -13,15 +16,33 @@ function convertToVideo() {
     convertBtn.textContent = 'ভিডিও তৈরি হচ্ছে...';
     resultDiv.innerHTML = '<p>ভিডিও তৈরি হচ্ছে, অপেক্ষা করুন...</p>';
 
-    // Simulate AI processing (in real app, this would call Hugging Face API)
-    setTimeout(() => {
-        const fileName = fileInput.files[0].name;
-        const videoName = fileName.replace(/\.[^/.]+$/, "") + '.mp4';
+    // Real Hugging Face API call
+    fetch(API_URL, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${HF_API_TOKEN}`,
+            'Content-Type': 'application/octet-stream'
+        },
+        body: fileInput.files[0]
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('API Error: ' + response.status);
+        }
+        return response.blob();
+    })
+    .then(videoBlob => {
+        const videoUrl = URL.createObjectURL(videoBlob);
+        const videoName = fileInput.files[0].name.replace(/\.[^/.]+$/, "") + '.mp4';
         
         resultDiv.innerHTML = `
             <div style="text-align: center;">
                 <p>✅ ভিডিও তৈরি সম্পূর্ণ!</p>
-                <button onclick="downloadVideo()" style="padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                <video controls style="width: 100%; max-width: 400px; margin: 10px 0;">
+                    <source src="${videoUrl}" type="video/mp4">
+                </video>
+                <br>
+                <button onclick="downloadVideo('${videoUrl}', '${videoName}')" style="padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer;">
                     ভিডিও ডাউনলোড করুন
                 </button>
                 <p style="margin-top: 10px; font-size: 14px; color: #666;">ফাইল: ${videoName}</p>
@@ -30,23 +51,22 @@ function convertToVideo() {
         
         convertBtn.disabled = false;
         convertBtn.textContent = 'ভিডিও বানান';
-    }, 3000);
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        resultDiv.innerHTML = '<p>⚠️ ভিডিও তৈরি ব্যর্থ! পরে আবার চেষ্টা করুন।</p>';
+        convertBtn.disabled = false;
+        convertBtn.textContent = 'ভিডিও বানান';
+    });
 }
 
-function downloadVideo() {
-    alert('ভিডিও ডাউনলোড শুরু হচ্ছে...\n\n(এটি একটি ডেমো। Real app-এ Hugging Face API ব্যবহার করতে হবে)');
-    
-    // In real implementation, this would download the actual video file
-    // For demo, we'll create a dummy download
-    const dummyVideo = new Blob(['Demo video content'], {type: 'video/mp4'});
-    const url = URL.createObjectURL(dummyVideo);
+function downloadVideo(videoUrl, fileName) {
     const a = document.createElement('a');
-    a.href = url;
-    a.download = 'converted-video.mp4';
+    a.href = videoUrl;
+    a.download = fileName;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    URL.revokeObjectURL(url);
 }
 
 // File upload preview
